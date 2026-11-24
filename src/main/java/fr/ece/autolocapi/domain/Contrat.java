@@ -38,12 +38,25 @@ public class Contrat {
     @OneToMany(
             mappedBy = "contrat",
             cascade = CascadeType.ALL,
+            orphanRemoval = true,
             fetch = FetchType.LAZY
     )
     private List<Paiement> paiements = new ArrayList<>();
 
     public void addPaiement(Paiement paiement) {
-        paiements.add(paiement);
+        if (paiement.getContrat() != null && paiement.getContrat() != this) {
+            throw new IllegalArgumentException("Un paiement appartient deja a un autre contrat");
+        }
+        if (!paiements.contains(paiement)) {
+            paiements.add(paiement);
+        }
         paiement.setContrat(this);
+    }
+
+    public void removePaiement(Paiement paiement) {
+        paiements.remove(paiement);
+        if (paiement.getContrat() == this) {
+            paiement.setContrat(null);
+        }
     }
 }

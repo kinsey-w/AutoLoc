@@ -13,7 +13,7 @@ All associations explicitly request `FetchType.LAZY`.
 | Reservation / Vehicule | `Reservation.vehicule` owns `reservation.vehicule_id_vehicule`; `Vehicule.reservations` uses `mappedBy = "vehicule"`. | A reservation can be read without immediately loading its vehicle, and vehicles without all their reservations. | None in either direction. A reservation refers to an independently persisted vehicle; deletion must not delete the vehicle or its reservation history. |
 | Reservation / Contrat | `Contrat.reservation` owns `contrat.reservation_id_reservation`, with a unique constraint; `Reservation.contrat` uses `mappedBy = "reservation"`. | Request deferred loading when the contract or reservation details are not needed. See the one-to-one caveat below. | `ALL` only on `Reservation.contrat`: the contract belongs to the reservation lifecycle. Removing a reservation removes its contract, but removing a contract does not remove the reservation. |
 | Vehicule / Maintenance | `Maintenance.vehicule` owns `maintenance.vehicule_id_vehicule`; `Vehicule.maintenances` uses `mappedBy = "vehicule"`. | Maintenance history is loaded only when needed. | `PERSIST` only on `Vehicule.maintenances`: saving a new vehicle can save its maintenance entries. No cascade back to the vehicle and no cascading removal of maintenance history. |
-| Contrat / Paiement (guided exercise) | `Paiement.contrat` owns `paiement.contrat_id_contrat`; `Contrat.paiements` uses `mappedBy = "contrat"`. | The LAZY/EAGER experiment showed a deferred payment query with LAZY and a join with EAGER. Final configuration is LAZY. | `ALL` only on `Contrat.paiements`: payments depend on their contract. Removing a contract also removes its payments. No cascade from payment to contract. |
+| Contrat / Paiement (guided exercise and section 12) | `Paiement.contrat` owns `paiement.contrat_id_contrat`; `Contrat.paiements` uses `mappedBy = "contrat"`. | The LAZY/EAGER experiment showed a deferred payment query with LAZY and a join with EAGER. Final configuration is LAZY. | `ALL` and `orphanRemoval = true` only on `Contrat.paiements`: payments depend on their contract. Removing a contract removes its payments; removing a payment from its collection deletes that payment at flush. No cascade from payment to contract. |
 
 ## Ownership and keeping both sides consistent
 
@@ -24,7 +24,10 @@ Only the owning side writes a foreign key or join-table link. Use
 `Vehicule.addMaintenance` / `removeMaintenance`,
 `Vehicule.addEquipement` / `removeEquipement`, and `Reservation.setContrat`.
 These methods update both Java objects. The collection helpers also detach the
-previous parent when moving an entity. Continue using `Contrat.addPaiement` for payments.
+previous parent when moving an independent entity. Use `Contrat.addPaiement` and
+`Contrat.removePaiement` for payments. A payment already attached to another
+contract cannot be moved using `addPaiement`: payments have a private lifecycle,
+and orphan removal makes reparenting an existing payment unsafe.
 When attaching a reservation to both a client and a vehicle, call both helpers.
 
 Collections are initialized. `Set` avoids duplicate equipment links for the same
@@ -45,10 +48,13 @@ client or vehicle, and detach maintenance entries before deleting a vehicle.
 Otherwise the database can reject deletion because references still exist.
 Removing a vehicle/equipment link does not delete the equipment record.
 
-Removing a reservation cascades through its contract to its payments. Removing
-a child from a collection alone does not delete it: `orphanRemoval` is not enabled
-by this exercise. Removing or replacing a contract link also does not delete the
-old contract automatically. Delete an entity explicitly when that is intended.
+Removing a reservation cascades through its contract to its payments. Section 12
+also requires composition for contract/payments: `Contrat.removePaiement` removes
+the payment from the collection and clears its contract reference; Hibernate
+deletes that orphan at flush. The contract and its other payments remain.
+This applies to managed, persisted entities inside a transaction. Other
+associations do not enable orphan removal. Removing or replacing a reservation's
+contract link does not delete the old contract automatically.
 
 ## LAZY and transaction boundaries
 
@@ -67,8 +73,8 @@ assuming every to-one association stays unloaded.
 Run `AssociationMappingTests` with `DB_PASSWORD` set in its IntelliJ JUnit run
 configuration. Its transactions roll back the sample data. It checks owning-side
 round trips, shared equipment, lazy equipment loading, persist cascades, the
-reservation/contract/payment removal chain, and preservation of independent
-entities after links are detached. Run `FetchStrategyTests` for the guided fetch
+reservation/contract/payment removal chain, payment orphan removal, and
+preservation of independent entities after links are detached. Run `FetchStrategyTests` for the guided fetch
 comparison, keeping the final mapping LAZY.
 
 Restart the application with `spring.jpa.hibernate.ddl-auto=update` and inspect
@@ -100,7 +106,7 @@ join tables should be created for inverse `mappedBy` collections.
 ### Validation results
 
 All production and test sources compiled with the installed JDK, Lombok and a
-Java 17 target. All seven tests passed against the local MySQL database: five
+Java 17 target. All nine tests passed against the local MySQL database: seven
 association tests, the guided fetch test and the application context test.
 Database inspection confirmed exactly ten tables, all nine expected foreign
 keys and the unique constraint on `contrat.reservation_id_reservation`.

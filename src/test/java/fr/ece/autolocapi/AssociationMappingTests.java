@@ -173,6 +173,49 @@ class AssociationMappingTests {
         assertNull(entityManager.find(Reservation.class, reservation.getIdReservation()).getClient());
     }
 
+    @Test
+    void removingPaymentFromContractDeletesOnlyThatPayment() {
+        Contrat contrat = contrat();
+        Paiement removed = paiement();
+        Paiement retained = paiement();
+        contrat.addPaiement(removed);
+        contrat.addPaiement(retained);
+        entityManager.persist(contrat);
+        entityManager.flush();
+        Long contratId = contrat.getIdContrat();
+        Long removedId = removed.getIdPaiement();
+        Long retainedId = retained.getIdPaiement();
+        entityManager.clear();
+
+        Contrat managed = entityManager.find(Contrat.class, contratId);
+        Paiement paymentToRemove = managed.getPaiements().stream()
+                .filter(paiement -> paiement.getIdPaiement().equals(removedId))
+                .findFirst().orElseThrow();
+        managed.removePaiement(paymentToRemove);
+        assertNull(paymentToRemove.getContrat());
+        entityManager.flush();
+        entityManager.clear();
+
+        assertNull(entityManager.find(Paiement.class, removedId));
+        assertNotNull(entityManager.find(Paiement.class, retainedId));
+        Contrat reloaded = entityManager.find(Contrat.class, contratId);
+        assertEquals(1, reloaded.getPaiements().size());
+        assertEquals(retainedId, reloaded.getPaiements().get(0).getIdPaiement());
+    }
+
+    @Test
+    void paymentCannotBeMovedBetweenContractsWithOrphanRemoval() {
+        Contrat original = contrat();
+        Contrat another = contrat();
+        Paiement paiement = paiement();
+        original.addPaiement(paiement);
+
+        assertThrows(IllegalArgumentException.class, () -> another.addPaiement(paiement));
+        assertSame(original, paiement.getContrat());
+        assertTrue(another.getPaiements().isEmpty());
+        assertEquals(1, original.getPaiements().size());
+    }
+
     private Agence agence() {
         Agence agence = new Agence();
         agence.setNom("Agence test");
