@@ -15,6 +15,8 @@ These are public exercise credentials. BCrypt stores salted, slow, one-way hashe
 
 Rules use the first match. Declare `/api/public/**` and `/api/admin/**` before `/api/**` so the broader rule cannot override them. Other routes require authentication.
 
+The local monitoring lab also permits `/actuator/health` and `/actuator/prometheus` before these rules.
+
 | GET route | Anonymous | USER | ADMIN |
 | --- | --- | --- | --- |
 | `/api/public/ping` | 200 | 200 | 200 |
