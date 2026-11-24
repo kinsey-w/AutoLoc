@@ -31,6 +31,10 @@ public class Contrat {
     @Column(nullable = false)
     private boolean valide;
 
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "reservation_id_reservation", unique = true)
+    private Reservation reservation;
+
     @OneToMany(
             mappedBy = "contrat",
             cascade = CascadeType.ALL,

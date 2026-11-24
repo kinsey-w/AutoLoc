@@ -28,4 +28,31 @@ public class Reservation {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private StatutReservation statut;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "client_id_client")
+    private Client client;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "vehicule_id_vehicule")
+    private Vehicule vehicule;
+
+    @OneToOne(mappedBy = "reservation", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private Contrat contrat;
+
+    public void setContrat(Contrat contrat) {
+        if (this.contrat == contrat) {
+            return;
+        }
+        if (this.contrat != null) {
+            this.contrat.setReservation(null);
+        }
+        this.contrat = contrat;
+        if (contrat != null) {
+            if (contrat.getReservation() != null && contrat.getReservation() != this) {
+                contrat.getReservation().setContrat(null);
+            }
+            contrat.setReservation(this);
+        }
+    }
 }

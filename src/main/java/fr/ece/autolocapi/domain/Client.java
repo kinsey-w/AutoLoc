@@ -7,6 +7,8 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "client")
@@ -36,4 +38,24 @@ public class Client {
 
     @Column(nullable = false)
     private LocalDate dateInscription;
+
+    @OneToMany(mappedBy = "client", cascade = CascadeType.PERSIST, fetch = FetchType.LAZY)
+    private List<Reservation> reservations = new ArrayList<>();
+
+    public void addReservation(Reservation reservation) {
+        if (reservation.getClient() != null && reservation.getClient() != this) {
+            reservation.getClient().getReservations().remove(reservation);
+        }
+        if (!reservations.contains(reservation)) {
+            reservations.add(reservation);
+        }
+        reservation.setClient(this);
+    }
+
+    public void removeReservation(Reservation reservation) {
+        reservations.remove(reservation);
+        if (reservation.getClient() == this) {
+            reservation.setClient(null);
+        }
+    }
 }
