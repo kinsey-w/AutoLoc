@@ -1,0 +1,265 @@
+{
+  "info": {
+    "name": "AutoLoc Security - Part 14",
+    "description": "Nine real GET requests from the assignment. Classroom credentials only. Start AutoLoc and set baseUrl if needed.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Anonymous",
+      "item": [
+        {
+          "name": "Public endpoint - expect 200",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/plain"
+              }
+            ],
+            "url": "{{baseUrl}}/api/public/ping",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Caller: Anonymous. Expected HTTP status: 200."
+          },
+          "response": []
+        },
+        {
+          "name": "Authenticated endpoint - expect 401",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/plain"
+              }
+            ],
+            "url": "{{baseUrl}}/api/hello",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Caller: Anonymous. Expected HTTP status: 401."
+          },
+          "response": []
+        },
+        {
+          "name": "Admin endpoint - expect 401",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/plain"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/report",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Caller: Anonymous. Expected HTTP status: 401."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "USER",
+      "item": [
+        {
+          "name": "Public endpoint - expect 200",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/plain"
+              }
+            ],
+            "url": "{{baseUrl}}/api/public/ping",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "student",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "student123",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Caller: USER. Expected HTTP status: 200."
+          },
+          "response": []
+        },
+        {
+          "name": "Authenticated endpoint - expect 200",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/plain"
+              }
+            ],
+            "url": "{{baseUrl}}/api/hello",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "student",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "student123",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Caller: USER. Expected HTTP status: 200."
+          },
+          "response": []
+        },
+        {
+          "name": "Admin endpoint - expect 403",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/plain"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/report",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "student",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "student123",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Caller: USER. Expected HTTP status: 403."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "ADMIN",
+      "item": [
+        {
+          "name": "Public endpoint - expect 200",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/plain"
+              }
+            ],
+            "url": "{{baseUrl}}/api/public/ping",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "admin",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "admin123",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Caller: ADMIN. Expected HTTP status: 200."
+          },
+          "response": []
+        },
+        {
+          "name": "Authenticated endpoint - expect 200",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/plain"
+              }
+            ],
+            "url": "{{baseUrl}}/api/hello",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "admin",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "admin123",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Caller: ADMIN. Expected HTTP status: 200."
+          },
+          "response": []
+        },
+        {
+          "name": "Admin endpoint - expect 200",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/plain"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/report",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "admin",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "admin123",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Caller: ADMIN. Expected HTTP status: 200."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

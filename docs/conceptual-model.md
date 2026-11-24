@@ -1,33 +1,26 @@
-# Section 12: AutoLoc conceptual model and English reference
+# AutoLoc conceptual model
 
-Section 12 supplies English names for reading the conceptual model. The Java
-project retains its French identifiers and existing database tables. Renaming
-the entities is not necessary to implement this reference and would require
-updating mappings, tests, queries and a database migration.
+English names are a reading guide. Java classes and database tables keep their French names.
 
-## Names and attributes
+## Name mapping
 
-Each row lists corresponding attributes in the same order. Relationship fields
-are shown in the diagram below rather than included in these scalar attributes.
+Attributes correspond in the order shown.
 
-| English class | Java class / database table | English attributes | Current Java attributes |
+| English class | Java class | English attributes | Java attributes |
 | --- | --- | --- | --- |
-| Agency | `Agence` / `agence` | agencyId, name, city, address, phone | idAgence, nom, ville, adresse, telephone |
-| Employee | `Employe` / `employe` | employeeId, lastName, firstName, role | idEmploye, nom, prenom, role |
-| Vehicle | `Vehicule` / `vehicule` | vehicleId, registrationNumber, brand, model, category, dailyRate, status | idVehicule, immatriculation, marque, modele, categorie, tarifJournalier, statut |
-| Equipment | `Equipement` / `equipement` | equipmentId, label | idEquipement, libelle |
-| Customer | `Client` / `client` | customerId, lastName, firstName, email, phone, licenceNumber, registrationDate | idClient, nom, prenom, email, telephone, numPermis, dateInscription |
-| Reservation | `Reservation` / `reservation` | reservationId, startDate, endDate, status | idReservation, dateDebut, dateFin, statut |
-| Contract | `Contrat` / `contrat` | contractId, signatureDate, totalAmount, valid | idContrat, dateSignature, montantTotal, valide |
-| Payment | `Paiement` / `paiement` | paymentId, amount, paymentDate, paymentMethod | idPaiement, montant, datePaiement, modePaiement |
-| Maintenance | `Maintenance` / `maintenance` | maintenanceId, startDate, endDate, description | idMaintenance, dateDebut, dateFin, description |
+| Agency | `Agence` | agencyId, name, city, address, phone | idAgence, nom, ville, adresse, telephone |
+| Employee | `Employe` | employeeId, lastName, firstName, role | idEmploye, nom, prenom, role |
+| Vehicle | `Vehicule` | vehicleId, registrationNumber, brand, model, category, dailyRate, status | idVehicule, immatriculation, marque, modele, categorie, tarifJournalier, statut |
+| Equipment | `Equipement` | equipmentId, label | idEquipement, libelle |
+| Customer | `Client` | customerId, lastName, firstName, email, phone, licenceNumber, registrationDate | idClient, nom, prenom, email, telephone, numPermis, dateInscription |
+| Reservation | `Reservation` | reservationId, startDate, endDate, status | idReservation, dateDebut, dateFin, statut |
+| Contract | `Contrat` | contractId, signatureDate, totalAmount, valid | idContrat, dateSignature, montantTotal, valide |
+| Payment | `Paiement` | paymentId, amount, paymentDate, paymentMethod | idPaiement, montant, datePaiement, modePaiement |
+| Maintenance | `Maintenance` | maintenanceId, startDate, endDate, description | idMaintenance, dateDebut, dateFin, description |
 
-`EmployeeRole` corresponds to `RoleEmploye` (`AGENT`, `MANAGER`). Other enum
-types remain `CategorieVehicule`, `StatutVehicule`, `StatutReservation` and
-`ModePaiement`. Entity identifiers use `Long`, dates use `LocalDate`, and amounts
-use `BigDecimal` mapped to `DECIMAL(10,2)`.
+`EmployeeRole` maps to `RoleEmploye` (`AGENT`, `MANAGER`). IDs use `Long`, dates use `LocalDate`, and amounts use `BigDecimal` / `DECIMAL(10,2)`.
 
-## UML relationships
+## Relationships
 
 ```mermaid
 classDiagram
@@ -42,69 +35,16 @@ classDiagram
     Vehicle "1" -- "0..*" Maintenance : has
 ```
 
-Read the multiplicity beside a class as the number of its instances allowed
-for one instance at the opposite end. For example, a vehicle can have many
-reservations, while each reservation is conceptually for one vehicle. A
-reservation may have no contract yet, or one contract. The unique reservation
-foreign key in `contrat` prevents multiple contracts for the same reservation.
+`0..*` means zero or more; `0..1` means optional and unique. The diamond marks composition: payments depend on their contract.
 
-The filled diamond marks composition: payments belong to their contract's
-lifecycle. Shared equipment is an ordinary many-to-many association, so deleting
-a vehicle must not delete equipment that other vehicles still use.
+The diagram shows conceptual requirements. Database foreign keys remain nullable for existing rows and standalone exercise contracts. Enforcing mandatory parents would require a data migration.
 
-The diagram represents the assignment's conceptual multiplicities. Database
-foreign keys are currently nullable to accommodate existing rows and the guided
-exercise's standalone contracts. Thus the database can temporarily contain
-unassigned entities. Enforcing every mandatory parent at database level would
-require backfilling those rows and migrating the relevant columns to `NOT NULL`.
-This exercise does not perform that data migration.
+## Contract and payment lifecycle
 
-## Composition in JPA
+`Contrat.paiements` uses `mappedBy = "contrat"`, `ALL`, `orphanRemoval = true`, and `LAZY`.
 
-The existing `Contrat.paiements` mapping now includes all section 12 requirements:
+- Delete a contract: its payments are deleted too.
+- Call `contrat.removePaiement(paiement)` on managed entities: only that payment is deleted at flush.
+- Call `contrat.addPaiement(paiement)` to link both sides. Moving a payment from another contract is rejected.
 
-```java
-@OneToMany(
-    mappedBy = "contrat",
-    cascade = CascadeType.ALL,
-    orphanRemoval = true,
-    fetch = FetchType.LAZY
-)
-private List<Paiement> paiements = new ArrayList<>();
-```
-
-- `mappedBy` reuses the owning `Paiement.contrat` association and its foreign key.
-- `ALL` propagates persistence operations, including deletion, from contract to payments.
-- `orphanRemoval` deletes a persisted payment removed from a managed contract's collection.
-- `LAZY` defers loading the collection until it is accessed inside the transaction.
-
-Use the helpers in application code within a transaction:
-
-```java
-contrat.addPaiement(paiement);
-contrat.removePaiement(paiement);
-```
-
-Removing a managed contract deletes its payments through cascade REMOVE.
-Removing just one payment through the helper deletes only that payment at flush;
-the contract and its other payments remain. This does not require changing the
-database schema: Hibernate performs the DELETE, rather than relying on a database
-ON DELETE CASCADE constraint. A payment attached to another contract is rejected
-by `addPaiement`; it is not silently moved between composition parents.
-
-All other associations and lifecycle choices are documented in
-[fetch-strategy.md](fetch-strategy.md).
-
-## Verification
-
-`AssociationMappingTests` includes a database test that persists a contract and
-two payments, reloads them, removes one payment using the helper, flushes and
-reloads again. It asserts that the removed payment is deleted, while the contract
-and the other payment still exist. A separate test checks that attaching a
-payment already belonging to another contract is rejected without changing either
-collection. Test transactions roll back their sample rows.
-
-All nine tests passed against local MySQL after adding orphan removal. Production
-and test sources compiled with Lombok and a Java 17 target; the tests ran through
-the JUnit Platform launcher using the installed dependencies. This includes the
-existing association, fetch and application-context checks.
+See [fetch-strategy.md](fetch-strategy.md) for all mapping choices. Database tests confirm orphan removal preserves the contract and its remaining payments.

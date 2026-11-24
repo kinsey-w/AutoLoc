@@ -1,5 +1,6 @@
 param(
-    [string]$BaseUrl = 'http://localhost:8080'
+    [string]$BaseUrl = 'http://localhost:8080',
+    [string]$ReportPath
 )
 
 $ErrorActionPreference = 'Stop'
@@ -23,6 +24,8 @@ $handler.UseCookies = $false
 $client = [System.Net.Http.HttpClient]::new($handler)
 $client.Timeout = [TimeSpan]::FromSeconds(10)
 $results = @()
+$responses = @()
+$startedAt = [DateTimeOffset]::Now.ToString('o')
 
 try {
     foreach ($caller in $callers) {
@@ -58,6 +61,16 @@ try {
                         Actual = $actual
                         Passed = $passed
                     }
+                    $responses += [pscustomobject]@{
+                        Caller = $caller.Name
+                        Method = 'GET'
+                        Path = $route.Path
+                        Expected = $expected
+                        Actual = $actual
+                        Passed = $passed
+                        Body = $body
+                        WwwAuthenticate = @($response.Headers.WwwAuthenticate | ForEach-Object { $_.ToString() })
+                    }
                 } finally {
                     $response.Dispose()
                 }
@@ -71,6 +84,16 @@ try {
 }
 
 $results | Format-Table -AutoSize
+if ($ReportPath) {
+    $report = [ordered]@{
+        StartedAt = $startedAt
+        BaseUrl = $BaseUrl.TrimEnd('/')
+        Verification = 'Real HTTP requests; no mocks'
+        Passed = $results.Count -eq 9 -and @($results | Where-Object { -not $_.Passed }).Count -eq 0
+        Results = $responses
+    }
+    $report | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $ReportPath -Encoding utf8
+}
 if ($results.Count -ne 9 -or ($results | Where-Object { -not $_.Passed })) {
     throw 'Security verification failed: compare the expected and actual responses above.'
 }

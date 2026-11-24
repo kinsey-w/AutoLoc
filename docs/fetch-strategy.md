@@ -1,93 +1,44 @@
-# Workshop 2: association, fetch and cascade choices
+# Fetch and cascade choices
 
-The project retains the French domain names. The assignment's `vehicle_equipment`
-join table is named `vehicule_equipement` consistently with these entities.
-All associations explicitly request `FetchType.LAZY`.
+All associations request `LAZY`. French naming is retained, including the `vehicule_equipement` join table.
 
-| Association | Owning side and database mapping | Fetch justification | Cascade justification |
+| Association | Owning field | Fetch reason | Cascade and reason |
 | --- | --- | --- | --- |
-| Agence / Vehicule | `Vehicule.agence` owns `vehicule.agence_id_agence`; `Agence.vehicules` uses `mappedBy = "agence"`. | Load an agency's fleet only when needed, and avoid loading the agency for every vehicle read. | None in either direction. Vehicles exist independently and must survive agency deletion. Persist vehicles separately. |
-| Agence / Employe | `Employe.agence` owns `employe.agence_id_agence`; `Agence.employes` uses `mappedBy = "agence"`. | Reading an agency does not require loading all employees, or vice versa. | None in either direction. Employees have an independent lifecycle and may move to another agency. |
-| Vehicule / Equipement | `Vehicule.equipements` owns `vehicule_equipement`, with `vehicule_id_vehicule` and `equipement_id_equipement`. `Equipement.vehicules` uses `mappedBy = "equipements"`. Both use `Set`. | Shared equipment is loaded only when its collection is accessed. | None. An equipment record can belong to several vehicles; saving or deleting a vehicle must not save or delete shared equipment. Persist equipment separately. |
-| Client / Reservation | `Reservation.client` owns `reservation.client_id_client`; `Client.reservations` uses `mappedBy = "client"`. | Do not load a client's complete reservation history for each client read. | `PERSIST` only on `Client.reservations`: saving a new client can save new reservations. No cascade from reservation to client and no cascading deletion of history. |
-| Reservation / Vehicule | `Reservation.vehicule` owns `reservation.vehicule_id_vehicule`; `Vehicule.reservations` uses `mappedBy = "vehicule"`. | A reservation can be read without immediately loading its vehicle, and vehicles without all their reservations. | None in either direction. A reservation refers to an independently persisted vehicle; deletion must not delete the vehicle or its reservation history. |
-| Reservation / Contrat | `Contrat.reservation` owns `contrat.reservation_id_reservation`, with a unique constraint; `Reservation.contrat` uses `mappedBy = "reservation"`. | Request deferred loading when the contract or reservation details are not needed. See the one-to-one caveat below. | `ALL` only on `Reservation.contrat`: the contract belongs to the reservation lifecycle. Removing a reservation removes its contract, but removing a contract does not remove the reservation. |
-| Vehicule / Maintenance | `Maintenance.vehicule` owns `maintenance.vehicule_id_vehicule`; `Vehicule.maintenances` uses `mappedBy = "vehicule"`. | Maintenance history is loaded only when needed. | `PERSIST` only on `Vehicule.maintenances`: saving a new vehicle can save its maintenance entries. No cascade back to the vehicle and no cascading removal of maintenance history. |
-| Contrat / Paiement (guided exercise and section 12) | `Paiement.contrat` owns `paiement.contrat_id_contrat`; `Contrat.paiements` uses `mappedBy = "contrat"`. | The LAZY/EAGER experiment showed a deferred payment query with LAZY and a join with EAGER. Final configuration is LAZY. | `ALL` and `orphanRemoval = true` only on `Contrat.paiements`: payments depend on their contract. Removing a contract removes its payments; removing a payment from its collection deletes that payment at flush. No cascade from payment to contract. |
+| Agence / Vehicule | `Vehicule.agence` | LAZY: load the fleet or agency when needed. | None: vehicles survive agency deletion. |
+| Agence / Employe | `Employe.agence` | LAZY: avoid loading every employee with the agency. | None: employees have independent lifecycles. |
+| Vehicule / Equipement | `Vehicule.equipements` | LAZY: load equipment on demand. | None: equipment is shared. Both sides use `Set` to avoid duplicate links for the same managed instance. |
+| Client / Reservation | `Reservation.client` | LAZY: load reservation history on demand. | PERSIST on `Client.reservations`: save new reservations with the client; preserve them on deletion. |
+| Reservation / Vehicule | `Reservation.vehicule` | LAZY: load the vehicle or its reservations when needed. | None: vehicles and reservation history are independent. |
+| Reservation / Contrat | `Contrat.reservation` | LAZY: defer contract details where supported. | ALL on `Reservation.contrat`: the contract follows the reservation lifecycle. |
+| Vehicule / Maintenance | `Maintenance.vehicule` | LAZY: load maintenance history on demand. | PERSIST on `Vehicule.maintenances`: save new entries with the vehicle; preserve history on deletion. |
+| Contrat / Paiement | `Paiement.contrat` | LAZY: the fetch experiment confirmed payment loading is deferred until collection access. | ALL + orphanRemoval on `Contrat.paiements`: deleting the contract deletes its payments; removing one payment deletes that payment. |
 
-## Ownership and keeping both sides consistent
+## Mapping rules
 
-Only the owning side writes a foreign key or join-table link. Use
-`Agence.addVehicule` / `removeVehicule`, `Agence.addEmploye` / `removeEmploye`,
-`Client.addReservation` / `removeReservation`,
-`Vehicule.addReservation` / `removeReservation`,
-`Vehicule.addMaintenance` / `removeMaintenance`,
-`Vehicule.addEquipement` / `removeEquipement`, and `Reservation.setContrat`.
-These methods update both Java objects. The collection helpers also detach the
-previous parent when moving an independent entity. Use `Contrat.addPaiement` and
-`Contrat.removePaiement` for payments. A payment already attached to another
-contract cannot be moved using `addPaiement`: payments have a private lifecycle,
-and orphan removal makes reparenting an existing payment unsafe.
-When attaching a reservation to both a client and a vehicle, call both helpers.
+- The owning side writes the foreign key; inverse sides use `mappedBy` with the exact owning field name.
+- Use the add/remove helpers to update both sides. Use `Reservation.setContrat` for the one-to-one link.
+- Persist independent entities separately; no cascade runs from a child back to its parent.
+- `Contrat.reservation_id_reservation` is unique. `vehicule_equipement` has two foreign keys and a composite primary key.
+- Keep targeted Lombok annotations; avoid `@Data` on bidirectional entities.
 
-Collections are initialized. `Set` avoids duplicate equipment links for the same
-managed entity instance; the join table has a composite primary key. Entities keep
-targeted Lombok annotations instead of `@Data`, avoiding recursive generated
-`toString`, `equals` and `hashCode` across bidirectional links.
+## Lifecycle and loading
 
-## Deletion and existing data
+Detach or reassign references, then flush before deleting an agency, client or vehicle. Otherwise foreign keys can block deletion. Removing equipment links preserves the equipment.
 
-Cascade is a JPA lifecycle rule, not a database `ON DELETE CASCADE` rule.
-Foreign keys remain nullable so existing rows can receive the new mappings
-without fabricated parent records. The database still enforces referential
-integrity when a foreign-key value is present.
+Only payments use orphan removal. Unlinking other children does not delete them. Cascade is handled by JPA, not database `ON DELETE CASCADE`.
 
-Before removing an agency, detach or reassign its vehicles and employees, then
-flush the owning-side updates. Similarly, detach reservations before deleting a
-client or vehicle, and detach maintenance entries before deleting a vehicle.
-Otherwise the database can reject deletion because references still exist.
-Removing a vehicle/equipment link does not delete the equipment record.
-
-Removing a reservation cascades through its contract to its payments. Section 12
-also requires composition for contract/payments: `Contrat.removePaiement` removes
-the payment from the collection and clears its contract reference; Hibernate
-deletes that orphan at flush. The contract and its other payments remain.
-This applies to managed, persisted entities inside a transaction. Other
-associations do not enable orphan removal. Removing or replacing a reservation's
-contract link does not delete the old contract automatically.
-
-## LAZY and transaction boundaries
-
-Read deferred relationships inside a transaction. For data needed afterward,
-use an explicit fetch join, entity graph or DTO projection rather than making all
-relationships EAGER. Avoid serializing the bidirectional entities directly.
-
-`LAZY` on a one-to-one association is a JPA hint. In particular, Hibernate may
-query the inverse `Reservation.contrat` side to determine whether an optional
-contract exists. Strict deferred loading there may require bytecode enhancement;
-the current project does not enable enhancement. Inspect actual SQL rather than
-assuming every to-one association stays unloaded.
+Access lazy relationships inside a transaction; use fetch joins or DTOs when data is needed afterward. Inverse one-to-one LAZY loading is a hint: Hibernate may query `Reservation.contrat` to check whether it exists. Strict deferral may require bytecode enhancement.
 
 ## Verification
 
-Run `AssociationMappingTests` with `DB_PASSWORD` set in its IntelliJ JUnit run
-configuration. Its transactions roll back the sample data. It checks owning-side
-round trips, shared equipment, lazy equipment loading, persist cascades, the
-reservation/contract/payment removal chain, payment orphan removal, and
-preservation of independent entities after links are detached. Run `FetchStrategyTests` for the guided fetch
-comparison, keeping the final mapping LAZY.
+Run `AssociationMappingTests` and `FetchStrategyTests` with `DB_PASSWORD` set. Keep the final fetch setting LAZY. Test rows are rolled back.
 
-Restart the application with `spring.jpa.hibernate.ddl-auto=update` and inspect
-the Hibernate DDL. There should be nine entity tables and one join table:
+Restart the application and inspect Hibernate DDL. Expect ten tables, nine foreign keys and the unique reservation constraint:
 
 ```sql
 USE autoloc_db;
 SHOW TABLES;
-SHOW CREATE TABLE vehicule;
-SHOW CREATE TABLE employe;
-SHOW CREATE TABLE reservation;
 SHOW CREATE TABLE contrat;
-SHOW CREATE TABLE maintenance;
 SHOW CREATE TABLE vehicule_equipement;
 
 SELECT TABLE_NAME, COLUMN_NAME, REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME
@@ -97,21 +48,4 @@ WHERE CONSTRAINT_SCHEMA = 'autoloc_db'
 ORDER BY TABLE_NAME, COLUMN_NAME;
 ```
 
-Expected foreign keys: vehicle to agency, employee to agency, reservation to
-client and vehicle, contract to reservation, maintenance to vehicle, both join
-table columns, and the existing payment to contract link (nine in total).
-The contract's reservation column must also have a unique constraint. No extra
-join tables should be created for inverse `mappedBy` collections.
-
-### Validation results
-
-All production and test sources compiled with the installed JDK, Lombok and a
-Java 17 target. All nine tests passed against the local MySQL database: seven
-association tests, the guided fetch test and the application context test.
-Database inspection confirmed exactly ten tables, all nine expected foreign
-keys and the unique constraint on `contrat.reservation_id_reservation`.
-The sample rows were rolled back; the schema changes remain applied.
-
-Maven's offline build was blocked by uncached build-plugin dependencies, so the
-checks used the installed application libraries and the JUnit Platform launcher
-directly. Mockito was loaded as a startup Java agent for this verification run.
+Validated against local MySQL: nine JUnit tests passed; table, foreign-key and unique-constraint checks passed. Checks used the JDK and JUnit launcher because Maven build-plugin dependencies were unavailable offline.

@@ -1,0 +1,102 @@
+{
+  "StartedAt": "2026-11-24T15:58:29.9031571+01:00",
+  "BaseUrl": "http://localhost:54253",
+  "Verification": "Real HTTP requests; no mocks",
+  "Passed": true,
+  "Results": [
+    {
+      "Caller": "Anonymous",
+      "Method": "GET",
+      "Path": "/api/public/ping",
+      "Expected": 200,
+      "Actual": 200,
+      "Passed": true,
+      "Body": "Public endpoint is reachable",
+      "WwwAuthenticate": []
+    },
+    {
+      "Caller": "Anonymous",
+      "Method": "GET",
+      "Path": "/api/hello",
+      "Expected": 401,
+      "Actual": 401,
+      "Passed": true,
+      "Body": "",
+      "WwwAuthenticate": [
+        "Basic realm=\"Realm\", charset=\"UTF-8\""
+      ]
+    },
+    {
+      "Caller": "Anonymous",
+      "Method": "GET",
+      "Path": "/api/admin/report",
+      "Expected": 401,
+      "Actual": 401,
+      "Passed": true,
+      "Body": "",
+      "WwwAuthenticate": [
+        "Basic realm=\"Realm\", charset=\"UTF-8\""
+      ]
+    },
+    {
+      "Caller": "USER",
+      "Method": "GET",
+      "Path": "/api/public/ping",
+      "Expected": 200,
+      "Actual": 200,
+      "Passed": true,
+      "Body": "Public endpoint is reachable",
+      "WwwAuthenticate": []
+    },
+    {
+      "Caller": "USER",
+      "Method": "GET",
+      "Path": "/api/hello",
+      "Expected": 200,
+      "Actual": 200,
+      "Passed": true,
+      "Body": "Hello, authenticated user",
+      "WwwAuthenticate": []
+    },
+    {
+      "Caller": "USER",
+      "Method": "GET",
+      "Path": "/api/admin/report",
+      "Expected": 403,
+      "Actual": 403,
+      "Passed": true,
+      "Body": "",
+      "WwwAuthenticate": []
+    },
+    {
+      "Caller": "ADMIN",
+      "Method": "GET",
+      "Path": "/api/public/ping",
+      "Expected": 200,
+      "Actual": 200,
+      "Passed": true,
+      "Body": "Public endpoint is reachable",
+      "WwwAuthenticate": []
+    },
+    {
+      "Caller": "ADMIN",
+      "Method": "GET",
+      "Path": "/api/hello",
+      "Expected": 200,
+      "Actual": 200,
+      "Passed": true,
+      "Body": "Hello, authenticated user",
+      "WwwAuthenticate": []
+    },
+    {
+      "Caller": "ADMIN",
+      "Method": "GET",
+      "Path": "/api/admin/report",
+      "Expected": 200,
+      "Actual": 200,
+      "Passed": true,
+      "Body": "Confidential admin report",
+      "WwwAuthenticate": []
+    }
+  ]
+}
