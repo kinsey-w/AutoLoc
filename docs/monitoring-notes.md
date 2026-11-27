@@ -52,4 +52,4 @@ Capture Prometheus Targets showing UP and the populated Grafana dashboard for su
 
 ## Validation status
 
-Java compilation, Compose configuration, dashboard JSON and script syntax checks passed. Live checks are pending: MySQL refused connections on port 3306, and Docker's image download ended with EOF at its CDN. Restart MySQL, complete the image pull, then run the verification script.
+Live verification passed on 2026-11-27: AutoLoc and MySQL are UP, all required metrics are exposed, Prometheus scrapes `autoloc-api` every 5 seconds without errors, and Grafana is healthy. All five dashboard queries return data. The verification script passed; submission screenshots still need capturing.
