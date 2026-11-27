@@ -34,7 +34,7 @@ Grafana provisions the Prometheus data source and dashboard from `monitoring/gra
 | HTTP response time p95 | Latency below which 95% of requests fall. |
 | Live threads | Current JVM thread count. |
 
-Send repeated requests to `/api/public/ping` and `/api/hello` using the classroom account. Wait for several scrapes, select Last 5 minutes and refresh. Rates need at least two scrapes; p95 needs request samples.
+Run `.\scripts\generate-traffic.ps1` to send 60 requests across `/api/public/ping` and authenticated `/api/hello`. In Grafana, select Last 5 minutes with 5s refresh. Rates need at least two scrapes; p95 needs request samples.
 
 Run `.\scripts\verify-monitoring.ps1` to check health, metric samples, the Prometheus target and Grafana. Use `-SkipContainers` to check only the application.
 
@@ -52,4 +52,6 @@ Capture Prometheus Targets showing UP and the populated Grafana dashboard for su
 
 ## Validation status
 
-Live verification passed on 2026-11-27: AutoLoc and MySQL are UP, all required metrics are exposed, Prometheus scrapes `autoloc-api` every 5 seconds without errors, and Grafana is healthy. All five dashboard queries return data. The verification script passed; submission screenshots still need capturing.
+Live verification passed on 2026-11-27: AutoLoc and MySQL are UP, Prometheus scrapes every 5 seconds without errors, Grafana is healthy, and all five panel queries return data.
+
+Part 17 traffic check passed: 30 public and 30 authenticated requests succeeded; both HTTP 200 counters increased by 30. Keep the Prometheus UP and populated dashboard screenshots with the submission.
