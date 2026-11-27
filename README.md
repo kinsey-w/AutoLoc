@@ -40,7 +40,6 @@ docker compose up -d
 | Prometheus targets | http://localhost:9090/targets |
 | Grafana dashboard | http://localhost:3000/d/autoloc-monitoring |
 
-Grafana provisions the data source and five panels automatically. On first login, use `admin` / `admin` and change the password.
 
 ## API accounts and tests
 
